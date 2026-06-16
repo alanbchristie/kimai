@@ -1,0 +1,42 @@
+---
+services:
+  database:
+    image: mariadb:11
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: kimai
+      MYSQL_USER: kimai
+      MYSQL_PASSWORD: ${KIMAI_DB_PASSWORD:-blob1234}
+      MYSQL_ROOT_PASSWORD: ${KIMAI_DB_ROOT_PASSWORD:-blob4567}
+    volumes:
+    - kimai_db:/var/lib/mysql
+    command: --default-storage-engine=innodb
+    healthcheck:
+      test:
+      - CMD
+      - healthcheck.sh
+      - --connect
+      - --innodb_initialized
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  kimai:
+    image: kimai/kimai2:2.60.0
+    restart: unless-stopped
+    depends_on:
+      database:
+        condition: service_healthy
+    ports:
+    - "8001:8001"
+    environment:
+      ADMINMAIL: admin@example.com
+      ADMINPASS: ${KIMAI_ADMIN_PASSWORD:-blob4321}
+      DATABASE_URL: "mysql://kimai:${KIMAI_DB_PASSWORD:-blob1234}@database/kimai?charset=utf8mb4&serverVersion=11.0.0-MariaDB"
+      TRUSTED_HOSTS: "localhost|127.0.0.1"   # pipe-separated; add your host/LAN IP, e.g. |192.168.1.50
+    volumes:
+    - kimai_data:/opt/kimai/var/data
+
+volumes:
+  kimai_db:
+  kimai_data:
